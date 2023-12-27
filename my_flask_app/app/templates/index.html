@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Show Results</title>
+    <style>
+      #pagination {
+        margin-top: 10px;
+      }
+
+      #prevBtn,
+      #nextBtn {
+        margin-right: 5px;
+      }
+
+      .result-container {
+        display: flex;
+        justify-content: space-around;
+      }
+
+      .result-item {
+        text-align: center;
+        border: 2px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Show Results</h1>
+
+    {% with messages = get_flashed_messages() %} {% if messages %}
+    <ul>
+      {% for message in messages %}
+      <li>{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %} {% endwith %}
+
+    <!-- Upload Data Form -->
+    <form
+      action="{{ url_for('main.upload') }}"
+      method="post"
+      enctype="multipart/form-data"
+    >
+      <label for="sql_file">Upload Data SQL:</label>
+      <input type="file" name="file_sql" accept=".xlsx, .xls" />
+      <br />
+
+      <label for="member_file">Upload Data Member:</label>
+      <input type="file" name="file_member" accept=".xlsx, .xls" />
+      <br />
+
+      <input type="submit" value="Upload" />
+    </form>
+
+    <hr />
+
+    <!-- Select Status Form -->
+    <form
+      action="{{ url_for('main.show_results') }}"
+      method="post"
+      id="statusForm"
+    >
+      <label for="status">Select Status:</label>
+      <select name="status" id="statusSelect">
+        <option value="" disabled selected>Select a Status</option>
+        <option value="Success">Success</option>
+        <option value="Have Member">Have Member</option>
+        <option value="Have SQL">Have SQL</option>
+      </select>
+      <button type="submit">Show Results</button>
+    </form>
+
+    <!-- Displaying Results -->
+    {% if results_list %}
+    <h1>{{ result_heading }}</h1>
+
+    <ul>
+      <li>
+        <b>NoHaveSuccess:</b> Jumlah rrn yang muncul di data_sql atau
+        data_member, tetapi tidak dalam kedua tabel(Tidak ada yang sama rrn dari
+        kedua tabel).
+      </li>
+      <li>
+        <b>NoHaveSQL:</b> Jumlah rrn yang muncul di data_member, tetapi tidak
+        dalam data_sql.
+      </li>
+      <li>
+        <b>NoHaveMember:</b> Jumlah rrn yang muncul di data_sql, tetapi tidak
+        dalam data_member.
+      </li>
+    </ul>
+
+    <table border="1">
+      <thead>
+        <tr>
+          <th>Total RRN</th>
+          <th>Total TRX</th>
+          <!-- Kolom baru yang ditambahkan -->
+          <th>No Have Success</th>
+          <th>No Have SQL</th>
+          <th>No Have Member</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ total_sukses_rrn }}</td>
+          <td>{{ total_transaksi_success }}</td>
+          <!-- Isi kolom baru dengan nilai yang sesuai -->
+          <td>
+            {% if results_list[0].no_have_success %}{{
+            results_list[0].no_have_success }}{% endif %}
+          </td>
+          <td>
+            {% if results_list[0].no_have_sql %}{{ results_list[0].no_have_sql
+            }}{% endif %}
+          </td>
+          <td>
+            {% if results_list[0].no_have_member %}{{
+            results_list[0].no_have_member }}{% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table border="1">
+      <thead>
+        <tr>
+          <th>TGL</th>
+          <th>RRN</th>
+          <th>Merchant Name Location (SQL)</th>
+          <th>Response Code (SQL)</th>
+          <th>Acq Bank Code (SQL)</th>
+          <th>Nama ISS (SQL)</th>
+          <th>Trx Amount (SQL)</th>
+          <th>Merchant Name Location (Member)</th>
+          <th>Response Code Member</th>
+          <th>Acq Bank Code Member</th>
+          <th>Nama ISS Member</th>
+          <th>Trx Amount Member</th>
+          <th>RRN SQL</th>
+          <th>RRN Member</th>
+          <th>RRN Source</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="resultsTableBody">
+        {% for result in results_list %}
+        <tr>
+          <td>{{ result.tgl }}</td>
+          <td>{{ result.rrn }}</td>
+          <td>{{ result.merchant_name_location_sql }}</td>
+          <td>{{ result.response_code_sql }}</td>
+          <td>{{ result.acq_bank_code_sql }}</td>
+          <td>{{ result.nama_iss_sql }}</td>
+          <td>{{ result.trx_amount_sql }}</td>
+          <td>{{ result.merchant_name_location_member }}</td>
+          <td>{{ result.response_code_member }}</td>
+          <td>{{ result.acq_bank_code_member }}</td>
+          <td>{{ result.nama_iss_member }}</td>
+          <td>{{ result.trx_amount_member }}</td>
+          <td>{{ result.rrn_sql }}</td>
+          <td>{{ result.rrn_member }}</td>
+          <td>{{ result.rrn_source }}</td>
+          <td>{{ result.status }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div id="pagination">
+      <button id="prevBtn" onclick="changePage(-1)">Previous</button>
+      <button id="nextBtn" onclick="changePage(1)">Next</button>
+    </div>
+
+    {% endif %}
+
+    <script>
+        let currentPage = 1;
+        const resultsPerPage = 10; // Sesuaikan jumlah data per halaman
+        let resultsList = {
+            {
+                results_list | tojson
+            }
+        };
+        const totalResults = resultsList.length;
+
+        let noHaveSQLCount = 0;
+        let noHaveMemberCount = 0;
+        let noHaveSuccessCount = 0;
+
+        function calculateNoHaveCounts() {
+            noHaveSQLCount = resultsList.filter(result => result.status === 'No Have SQL').length;
+            noHaveMemberCount = resultsList.filter(result => result.status === 'No Have Member').length;
+            noHaveSuccessCount = resultsList.filter(result => result.status === 'No Have Success').length;
+        }
+
+        function showResultsOnPage(page) {
+            const startIdx = (page - 1) * resultsPerPage;
+            const endIdx = startIdx + resultsPerPage;
+            const pageResults = resultsList.slice(startIdx, endIdx);
+
+            const tableBody = document.getElementById("resultsTableBody");
+            tableBody.innerHTML = "";
+
+            for (const result of pageResults) {
+                const row = document.createElement("tr");
+                row.innerHTML = `<td>${result.tgl}</td>
+      <td>${result.rrn}</td>
+      <td>${result.merchant_name_location_sql}</td>
+      <td>${result.response_code_sql}</td>
+      <td>${result.acq_bank_code_sql}</td>
+      <td>${result.nama_iss_sql}</td>
+      <td>${result.trx_amount_sql}</td>
+      <td>${result.merchant_name_location_member}</td>
+      <td>${result.response_code_member}</td>
+      <td>${result.acq_bank_code_member}</td>
+      <td>${result.nama_iss_member}</td>
+      <td>${result.trx_amount_member}</td>
+      <td>${result.rrn_sql}</td>
+      <td>${result.rrn_member}</td>
+      <td>${result.rrn_source}</td>
+      <td>${result.status}</td>`;
+
+                tableBody.appendChild(row);
+            }
+
+            calculateNoHaveCounts();
+            updateNoHaveCounts();
+        }
+
+        function updateNoHaveCounts() {
+            document.getElementById("noHaveSQLCount").textContent = noHaveSQLCount;
+            document.getElementById("noHaveMemberCount").textContent = noHaveMemberCount;
+            document.getElementById("noHaveSuccessCount").textContent = noHaveSuccessCount;
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            if (currentPage < 1) {
+                currentPage = 1;
+            } else if (currentPage > calculateTotalPages()) {
+                currentPage = calculateTotalPages();
+            }
+
+            showResultsOnPage(currentPage);
+        }
+
+        function calculateTotalPages() {
+            return Math.ceil(totalResults / resultsPerPage);
+        }
+
+        document.getElementById("pagination").style.display = "none";
+
+        document.getElementById("statusForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            const selectedStatus = document.getElementById("statusSelect").value;
+
+            // Update the result title based on the selected status
+            const resultTitle = document.getElementById("resultTitle");
+            resultTitle.textContent = `Results ${selectedStatus}`;
+
+            fetchResults(selectedStatus);
+        });
+
+        function fetchResults(status) {
+            // Fetch results using the selected status
+            const formData = new FormData(document.getElementById("statusForm"));
+            formData.set("status", status);
+
+            fetch("/show_results", {
+                    method: "POST",
+                    body: formData,
+                })
+                .then(response => response.json())
+                .then(data => {
+                    resultsList = data.results_list;
+                    showResultsOnPage(currentPage);
+                    document.getElementById("pagination").style.display = "block";
+                })
+                .catch(error => console.error("Error fetching results:", error));
+        }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Show Results</title>
+    <style>
+      #pagination {
+        margin-top: 10px;
+      }
+
+      #prevBtn,
+      #nextBtn {
+        margin-right: 5px;
+      }
+
+      .result-container {
+        display: flex;
+        justify-content: flex-start;
+      }
+
+      .result-item {
+        text-align: center;
+      }
+
+      .pagination button {
+        cursor: pointer;
+        padding: 5px 10px;
+        margin: 0 2px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+
+      .pagination button.active {
+        background-color: #4caf50;
+        color: white;
+        border: 1px solid #4caf50;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Show Results</h1>
+
+    {% with messages = get_flashed_messages() %} {% if messages %}
+    <ul>
+      {% for message in messages %}
+      <li>{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %} {% endwith %}
+
+    <!-- Upload Data Form -->
+    <form
+      action="{{ url_for('main.upload') }}"
+      method="post"
+      enctype="multipart/form-data"
+    >
+      <label for="sql_file">Upload Data SQL:</label>
+      <input type="file" name="file_sql" accept=".xlsx, .xls" />
+      <br />
+
+      <label for="member_file">Upload Data Member:</label>
+      <input type="file" name="file_member" accept=".xlsx, .xls" />
+      <br />
+
+      <input type="submit" value="Upload" />
+    </form>
+
+    <hr />
+
+    <!-- Select Status Form -->
+    <form
+      action="{{ url_for('main.show_results') }}"
+      method="post"
+      id="statusForm"
+    >
+      <label for="status">Select Status:</label>
+      <select name="status" id="statusSelect">
+        <option value="" disabled selected>Select a Status</option>
+        <option value="Success">Success</option>
+        <option value="Have Member">Have Member</option>
+        <option value="Have SQL">Have SQL</option>
+      </select>
+      <button type="submit">Show Results</button>
+    </form>
+
+    <!-- Displaying Results -->
+    {% if results_list %}
+    <h1>Results</h1>
+
+    <div class="result-container">
+      <div class="result-item">
+        <h4>Total RRN</h4>
+        <h5>{{ total_sukses_rrn }}</h5>
+      </div>
+
+      <div class="result-item">
+        <h4>Total TRX</h4>
+        <h5>{{ total_transaksi_success }}</h5>
+      </div>
+    </div>
+
+    <table border="1">
+      <thead>
+        <tr>
+          <th>TGL</th>
+          <th>RRN</th>
+          <th>Merchant Name Location (SQL)</th>
+          <th>Response Code (SQL)</th>
+          <th>Acq Bank Code (SQL)</th>
+          <th>Nama ISS (SQL)</th>
+          <th>Trx Amount (SQL)</th>
+          <th>Merchant Name Location (Member)</th>
+          <th>Response Code Member</th>
+          <th>Acq Bank Code Member</th>
+          <th>Nama ISS Member</th>
+          <th>Trx Amount Member</th>
+          <th>RRN SQL</th>
+          <th>RRN Member</th>
+          <th>RRN Source</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="resultsTableBody">
+        {% for result in results_list %}
+        <tr>
+          <td>{{ result.tgl }}</td>
+          <td>{{ result.rrn }}</td>
+          <td>{{ result.merchant_name_location_sql }}</td>
+          <td>{{ result.response_code_sql }}</td>
+          <td>{{ result.acq_bank_code_sql }}</td>
+          <td>{{ result.nama_iss_sql }}</td>
+          <td>{{ result.trx_amount_sql }}</td>
+          <td>{{ result.merchant_name_location_member }}</td>
+          <td>{{ result.response_code_member }}</td>
+          <td>{{ result.acq_bank_code_member }}</td>
+          <td>{{ result.nama_iss_member }}</td>
+          <td>{{ result.trx_amount_member }}</td>
+          <td>{{ result.rrn_sql }}</td>
+          <td>{{ result.rrn_member }}</td>
+          <td>{{ result.rrn_source }}</td>
+          <td>{{ result.status }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="pagination" id="pagination">
+      <button id="prevBtn" onclick="changePage(-1)">Previous</button> {% for
+      page in range(1, total_pages + 1) %}
+      <button
+        onclick="changePage({{ page }})"
+        class="{{ 'active' if page == current_page else '' }}"
+      >
+        {{ page }}
+      </button>
+      {% endfor %}
+      <button id="nextBtn" onclick="changePage(1)">Next</button>
+    </div>
+
+    {% endif %}
+    <script>
+        let currentPage = 1;
+        const resultsPerPage = 10;
+        let resultsList = {
+            {
+                results_list | tojson
+            }
+        };
+        const totalResults = resultsList.length;
+        const total_pages = Math.ceil(totalResults / resultsPerPage);
+
+        function calculateTotalPages() {
+            return Math.ceil(totalResults / resultsPerPage);
+        }
+
+        function showResultsOnPage(page) {
+            const startIdx = (page - 1) * resultsPerPage;
+            const endIdx = startIdx + resultsPerPage;
+            const pageResults = resultsList.slice(startIdx, endIdx);
+
+            const tableBody = document.getElementById("resultsTableBody");
+            tableBody.innerHTML = "";
+
+            for (const result of pageResults) {
+                const row = document.createElement("tr");
+                row.innerHTML = `<td>${result.tgl}</td>
+      <td>${result.rrn}</td>
+      <td>${result.merchant_name_location_sql}</td>
+      <td>${result.response_code_sql}</td>
+      <td>${result.acq_bank_code_sql}</td>
+      <td>${result.nama_iss_sql}</td>
+      <td>${result.trx_amount_sql}</td>
+      <td>${result.merchant_name_location_member}</td>
+      <td>${result.response_code_member}</td>
+      <td>${result.acq_bank_code_member}</td>
+      <td>${result.nama_iss_member}</td>
+      <td>${result.trx_amount_member}</td>
+      <td>${result.rrn_sql}</td>
+      <td>${result.rrn_member}</td>
+      <td>${result.rrn_source}</td>
+      <td>${result.status}</td>`;
+
+                tableBody.appendChild(row);
+            }
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            if (currentPage < 1) {
+                currentPage = 1;
+            } else if (currentPage > total_pages) {
+                currentPage = total_pages;
+            }
+
+            showResultsOnPage(currentPage);
+        }
+
+        // Hide pagination initially
+        document.getElementById("pagination").style.display = "none";
+
+        // Initial page load when the "Show Results" button is clicked
+        document.getElementById("statusForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            showResultsOnPage(currentPage);
+            document.getElementById("pagination").style.display = "block";
+        });
+    </script>
+  </body>
+</html>
